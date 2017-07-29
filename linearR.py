@@ -1,11 +1,27 @@
 import tensorflow as tf
-state = tf.Variable(0.0,dtype=tf.float32)
-one = tf.constant(1.0,dtype=tf.float32)
-new_val = tf.add(state, one)
-update = tf.assign(state, new_val)
-init = tf.initialize_all_variables()
-with tf.Session() as sess:
-    sess.run(init)
-    for _ in range(10):
-        u,s = sess.run([update,state])
-        print(s)
+
+with tf.variable_scope("root"):
+    # At start, the scope is not reusing.
+    assert tf.get_variable_scope().reuse == False
+    with tf.variable_scope("foo"):
+        # Opened a sub-scope, still not reusing.
+        assert tf.get_variable_scope().reuse == False
+    with tf.variable_scope("foo", reuse=True):
+        # Explicitly opened a reusing scope.
+        assert tf.get_variable_scope().reuse == True
+        with tf.variable_scope("bar"):
+            # Now sub-scope inherits the reuse flag.
+            assert tf.get_variable_scope().reuse == True
+
+    # Exited the reusing scope, back to a non-reusing one.
+    assert tf.get_variable_scope().reuse == False
+
+with tf.variable_scope("foo") as foo_scope:
+  v = tf.get_variable("v", [1])
+with tf.variable_scope(foo_scope):
+  w = tf.get_variable("w", [1])
+with tf.variable_scope(foo_scope, reuse=True):
+  v1 = tf.get_variable("v", [1])
+  w1 = tf.get_variable("w", [1])
+assert v1 == v
+assert w1 == w
